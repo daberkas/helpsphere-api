@@ -1,0 +1,6 @@
+@APIManuelJimenez_HostAddress = http://localhost:5115
+
+GET {{APIManuelJimenez_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
