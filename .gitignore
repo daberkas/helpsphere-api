@@ -416,3 +416,16 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker local overrides
+docker-compose.override.yml
+
+# Local appsettings with secrets
+appsettings.Production.json
+appsettings.Local.json
+
