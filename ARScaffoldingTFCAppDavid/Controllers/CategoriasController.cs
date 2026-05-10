@@ -1,15 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using API_TFCAppDavid.Contexto;
+using API_TFCAppDavid.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using API_TFCAppDavid.Contexto;
-using API_TFCAppDavid.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace API_TFCAppDavid.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class CategoriasController : ControllerBase
@@ -22,6 +24,7 @@ namespace API_TFCAppDavid.Controllers
         }
 
         // GET: api/Categorias
+        [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Categoria>>> GetCategorias()
         {
@@ -29,6 +32,7 @@ namespace API_TFCAppDavid.Controllers
         }
 
         // GET: api/Categorias/5
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<Categoria>> GetCategoria(int id)
         {

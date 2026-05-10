@@ -1,15 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using API_TFCAppDavid.Contexto;
+using API_TFCAppDavid.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using API_TFCAppDavid.Contexto;
-using API_TFCAppDavid.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace API_TFCAppDavid.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class PublicacionesController : ControllerBase
@@ -22,6 +24,7 @@ namespace API_TFCAppDavid.Controllers
         }
 
         // GET: api/Publicaciones
+        [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Publicacion>>> GetPublicaciones()
         {
@@ -29,6 +32,7 @@ namespace API_TFCAppDavid.Controllers
         }
 
         // GET: api/Publicaciones/5
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<Publicacion>> GetPublicacion(int id)
         {
