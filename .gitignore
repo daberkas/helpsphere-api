@@ -429,3 +429,4 @@ docker-compose.override.yml
 appsettings.Production.json
 appsettings.Local.json
 
+appsettings.Development.json
