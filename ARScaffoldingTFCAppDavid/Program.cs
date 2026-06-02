@@ -18,7 +18,7 @@ namespace API_TFCAppDavid
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-
+           
             builder.Services.AddDbContext<ASPContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -53,7 +53,7 @@ namespace API_TFCAppDavid
 
             builder.Services.AddEndpointsApiExplorer();
 
-            builder.Services.AddSwaggerGen(c => {
+            builder.Services.AddSwaggerGen(c => {   
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "HelpSphere API", Version = "v1" });
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
@@ -84,13 +84,13 @@ namespace API_TFCAppDavid
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            //            if (app.Environment.IsDevelopment())
-            //            {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-            //            }
+//            if (app.Environment.IsDevelopment())
+//            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+//            }
 
-            //            app.UseHttpsRedirection();
+//            app.UseHttpsRedirection();
 
             app.UseCors("AllowWebClient");
 

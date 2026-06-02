@@ -66,19 +66,19 @@ namespace API_TFCAppDavid.Controllers
                 return BadRequest("Error al recuperar la identidad del usuario.");
             }
 
-            var usuarioExiste = await _context.Usuarios
-                .AnyAsync(u => u.FirebaseUid == firebaseUid || u.Email == dto.Email);
+            var usuario = await _context.Usuarios
+                .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid || u.Email == dto.Email);
 
-            if (!usuarioExiste)
+            if (usuario == null)
             {
-                var usuario = new Usuario
+                usuario = new Usuario
                 {
                     FirebaseUid = firebaseUid,
                     Nombre = dto.Nombre,
                     Apellidos = dto.Apellidos,
                     Email = dto.Email,
                     Zona = dto.Zona,
-                    SaldoPuntos = 0,
+                    SaldoPuntos = 100,
                     ReputacionMedia = 0,
                     FechaRegistro = DateTime.Now,
                     Activo = true,
@@ -93,7 +93,19 @@ namespace API_TFCAppDavid.Controllers
             {
                 message = "Usuario registrado correctamente",
                 firebaseUid,
-                idToken
+                idToken,
+                usuario = new
+                {
+                    usuario.IdUsuario,
+                    usuario.Nombre,
+                    usuario.Apellidos,
+                    usuario.Email,
+                    usuario.Zona,
+                    usuario.SaldoPuntos,
+                    usuario.ReputacionMedia,
+                    usuario.Activo,
+                    usuario.IdRol
+                }
             });
         }
 
@@ -135,12 +147,33 @@ namespace API_TFCAppDavid.Controllers
             var usuario = await _context.Usuarios
                 .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
 
+            if (usuario == null)
+            {
+                return Unauthorized("Usuario autenticado en Firebase, pero no registrado en la base de datos interna.");
+            }
+
+            if (!usuario.Activo)
+            {
+                return Unauthorized("El usuario está bloqueado y no puede iniciar sesión.");
+            }
+
             return Ok(new
             {
                 message = "Inicio de sesión correcto",
                 firebaseUid,
                 idToken,
-                usuario
+                usuario = new
+                {
+                    usuario.IdUsuario,
+                    usuario.Nombre,
+                    usuario.Apellidos,
+                    usuario.Email,
+                    usuario.Zona,
+                    usuario.SaldoPuntos,
+                    usuario.ReputacionMedia,
+                    usuario.Activo,
+                    usuario.IdRol
+                }
             });
         }
     }
