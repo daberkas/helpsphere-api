@@ -84,13 +84,19 @@ namespace API_TFCAppDavid
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
+            // Swagger se mantiene habilitado en todos los entornos por motivos académicos,
+            // permitiendo la consulta y prueba de los endpoints durante la evaluación del proyecto.
+            // En un entorno de producción real, esta funcionalidad debería limitarse al entorno
+            // de desarrollo para evitar exponer información interna de la API.
 //            if (app.Environment.IsDevelopment())
 //            {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-//            }
-
-//            app.UseHttpsRedirection();
+            //            }
+            // La terminación HTTPS se realiza mediante Cloudflare Tunnel y Traefik.
+            // Por este motivo no se utiliza UseHttpsRedirection en la configuración de la API,
+            // ya que el tráfico llega a la API a través de HTTP desde el túnel seguro.
+            //            app.UseHttpsRedirection();
 
             app.UseCors("AllowWebClient");
 
