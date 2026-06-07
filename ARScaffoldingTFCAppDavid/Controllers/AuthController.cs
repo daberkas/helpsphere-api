@@ -8,6 +8,11 @@ using System.Text.Json;
 
 namespace API_TFCAppDavid.Controllers
 {
+    /// <summary>
+    ///  Controlador encargado del registro y autenticación de usuarios utilizando 
+    ///  Firebase Authentication. Los datos adicionales se almacenan en la base de datos interna 
+    ///  para gestionar roles, puntos, reputación y estado del usuario.
+    /// </summary>
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
@@ -26,12 +31,17 @@ namespace API_TFCAppDavid.Controllers
             _configuration = configuration;
         }
 
+        /// <summary>
+        ///  Registra un nuevo usuario en Firebase Authentication 
+        ///  y luego crea un registro en la base de datos interna.
+        /// </summary>
         [HttpPost("register")]
         public async Task<IActionResult> Register(AuthRegisterDto dto)
         {
             var apiKey = _configuration["Firebase:ApiKey"];
             var client = _httpClientFactory.CreateClient();
 
+            // Crear usuario en Firebase Authentication
             var firebaseRequest = new
             {
                 email = dto.Email,
@@ -69,6 +79,7 @@ namespace API_TFCAppDavid.Controllers
             var usuario = await _context.Usuarios
                 .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid || u.Email == dto.Email);
 
+            // Crear el usuario en la base de datos interna si no existe
             if (usuario == null)
             {
                 usuario = new Usuario
@@ -109,6 +120,11 @@ namespace API_TFCAppDavid.Controllers
             });
         }
 
+        /// <summary>
+        ///  Autentica a un usuario utilizando Firebase Authentication. 
+        ///  Verifica que el usuario exista en la base de datos interna y que esté activo 
+        ///  antes de permitir el inicio de sesión.
+        /// </summary>
         [HttpPost("login")]
         public async Task<IActionResult> Login(AuthLoginDto dto)
         {
@@ -144,6 +160,7 @@ namespace API_TFCAppDavid.Controllers
             var firebaseUid = jsonDoc.RootElement.GetProperty("localId").GetString();
             var idToken = jsonDoc.RootElement.GetProperty("idToken").GetString();
 
+            // Buscar el usuario en la base de datos interna utilizando el Firebase UID
             var usuario = await _context.Usuarios
                 .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
 
@@ -152,6 +169,7 @@ namespace API_TFCAppDavid.Controllers
                 return Unauthorized("Usuario autenticado en Firebase, pero no registrado en la base de datos interna.");
             }
 
+            // Impedir el acceso si el usuario está bloqueado por un administrador
             if (!usuario.Activo)
             {
                 return Unauthorized("El usuario está bloqueado y no puede iniciar sesión.");

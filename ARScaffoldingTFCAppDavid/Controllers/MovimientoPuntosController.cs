@@ -12,6 +12,12 @@ using System.Security.Claims;
 
 namespace API_TFCAppDavid.Controllers
 {
+    /// <summary>
+    /// Consulta de movimientos de puntos del usuario autenticado.
+    /// Los movimientos de puntos se generan automáticamente 
+    /// en función de la logica de negocio y no pueden ser creados, 
+    /// modificados o eliminados manualmente desde el cliente.
+    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -24,6 +30,9 @@ namespace API_TFCAppDavid.Controllers
             _context = context;
         }
 
+        /// <summary>
+        /// Obtiene el usuario autenticado a partir del token JWT y su Firebase UID.
+        /// </summary>
         private async Task<Usuario?> GetUsuarioAutenticado()
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -39,7 +48,9 @@ namespace API_TFCAppDavid.Controllers
                 .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
         }
 
-        // GET: api/MovimientoPuntos
+        /// <summary>
+        /// Obtiene la lista de movimientos de puntos del usuario autenticado.
+        /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<MovimientoPuntos>>> GetMovimientosPuntos()
         {
@@ -50,6 +61,7 @@ namespace API_TFCAppDavid.Controllers
                 return Unauthorized("Usuario no encontrado.");
             }
 
+            // Solo se devuelven los movimientos de puntos del usuario autenticado
             var movimientos = await _context.MovimientosPuntos
                 .Where(m => m.IdUsuario == usuario.IdUsuario)
                 .Select(m => new
@@ -67,7 +79,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(movimientos);
         }
 
-        // GET: api/MovimientoPuntos/5
+        /// <summary>
+        /// Obtiene un movimiento de puntos específico por su ID, 
+        /// solo si pertenece al usuario autenticado.
+        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<MovimientoPuntos>> GetMovimientoPuntos(int id)
         {
@@ -97,6 +112,8 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound();
             }
 
+            // Verifico que el movimiento de puntos pertenece al usuario autenticado,
+            // impidiendo el acceso a movimientos de otros usuarios
             if (movimiento.IdUsuario != usuario.IdUsuario)
             {
                 return Forbid();
@@ -105,7 +122,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(movimiento);
         }
 
-        // PUT: api/MovimientoPuntos/5
+        /// <summary>
+        /// Operación no permitida: Los movimientos de puntos no se modifican manualmente 
+        /// desde el cliente. Son generados automáticamente.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutMovimientoPuntos(int id, MovimientoPuntos movimientoPuntos)
@@ -113,7 +133,9 @@ namespace API_TFCAppDavid.Controllers
             return BadRequest("Los movimientos de puntos no se modifican manualmente desde el cliente.");
         }
 
-        // POST: api/MovimientoPuntos
+        /// <summary>
+        /// Operación no permitida: Los movimientos de puntos no se crean manualmente.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<MovimientoPuntos>> PostMovimientoPuntos(MovimientoPuntos movimientoPuntos)
@@ -121,7 +143,10 @@ namespace API_TFCAppDavid.Controllers
             return BadRequest("Los movimientos de puntos no se crean manualmente desde el cliente.");
         }
 
-        // DELETE: api/MovimientoPuntos/5
+        /// <summary>
+        /// Operación no permitida: Los movimientos de puntos no se eliminan manualmente.
+        /// Forman parte del historial de transacciones del usuario y se mantienen para referencia futura.
+        /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMovimientoPuntos(int id)
         {

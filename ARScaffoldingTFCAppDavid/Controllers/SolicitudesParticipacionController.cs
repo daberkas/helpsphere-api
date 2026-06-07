@@ -12,6 +12,11 @@ using System.Security.Claims;
 
 namespace API_TFCAppDavid.Controllers
 {
+    /// <summary>
+    /// Gestión de solicitudes de participación en publicaciones.
+    /// Permite a los usuarios solicitar participar en una publicación y al creador de la publicación 
+    /// aceptar o rechazar participantes y consultar el estado de dichas solicitudes.
+    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -24,6 +29,9 @@ namespace API_TFCAppDavid.Controllers
             _context = context;
         }
 
+        /// <summary>
+        /// Obtenemos el usuario autenticado a partir del token JWT emitido por Firebase.
+        /// </summary>
         private async Task<Usuario?> GetUsuarioAutenticado()
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -39,7 +47,10 @@ namespace API_TFCAppDavid.Controllers
                 .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
         }
 
-        // GET: api/SolicitudesParticipacion
+        /// <summary>
+        /// Obtiene todas las solicitudes de participación relacionadas con el usuario autenticado, 
+        /// ya sea como solicitante o como creador de la publicación.
+        /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<SolicitudParticipacion>>> GetSolicitudesParticipacion()
         {
@@ -50,6 +61,8 @@ namespace API_TFCAppDavid.Controllers
                 return Unauthorized("Usuario no encontrado.");
             }
 
+            // Mostramos únicamente las solicitudes vinculadas al usuario autenticado,
+            // ya sea como solicitante o como creador de la publicación.
             var solicitudes = await _context.SolicitudesParticipacion
                 .Include(s => s.Publicacion)
                 .Include(s => s.UsuarioSolicitante)
@@ -74,7 +87,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(solicitudes);
         }
 
-        // GET: api/SolicitudesParticipacion/5
+        /// <summary>
+        /// Se obtiene el detalle de una solicitud de participación específica, 
+        /// siempre que el usuario esté autenticado
+        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<SolicitudParticipacion>> GetSolicitudParticipacion(int id)
         {
@@ -96,6 +112,8 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound();
             }
 
+            // Solo el usuario que hizo la solicitud o el creador de la publicación
+            // pueden ver los detalles de la solicitud
             if (solicitud.IdUsuarioSolicitante != usuario.IdUsuario &&
                 solicitud.Publicacion.IdUsuarioCreador != usuario.IdUsuario)
             {
@@ -116,7 +134,9 @@ namespace API_TFCAppDavid.Controllers
             });
         }
 
-        // PUT: api/SolicitudesParticipacion/5
+        /// <summary>
+        /// Permite al creador de la publicación aceptar o rechazar una solicitud de participación.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutSolicitudParticipacion(int id, SolicitudParticipacion solicitudParticipacion)
@@ -148,6 +168,7 @@ namespace API_TFCAppDavid.Controllers
                 return Forbid();
             }
 
+            // Normalizar el estado recibido a mayúsculas para evitar problemas de comparación
             var nuevoEstado = solicitudParticipacion.Estado?.ToUpper();
 
             if (nuevoEstado != "ACEPTADA" && nuevoEstado != "RECHAZADA")
@@ -157,6 +178,10 @@ namespace API_TFCAppDavid.Controllers
 
             solicitudExistente.Estado = nuevoEstado;
 
+            // Si se acepta la solicitud, se rechazan automáticamente
+            // las demás solicitudes pendientes para esa publicación.
+            // Se garantiza que una publicación solo tenga un participante aceptado, 
+            // manteniendo la coherencia del estado de la publicación (ABIERTA, ASIGNADA, COMPLETADA).
             if (nuevoEstado == "ACEPTADA")
             {
                 var otrasSolicitudesPendientesOAceptadas = await _context.SolicitudesParticipacion
@@ -195,7 +220,9 @@ namespace API_TFCAppDavid.Controllers
             return NoContent();
         }
 
-        // POST: api/SolicitudesParticipacion
+        /// <summary>
+        /// Registra una nueva solicitud de participación para una publicación específica.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<SolicitudParticipacion>> PostSolicitudParticipacion(SolicitudParticipacion solicitudParticipacion)
@@ -215,6 +242,7 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound("La publicación indicada no existe.");
             }
 
+            // Evitar que el creador de la publicación solicite participar en su propia publicación
             if (publicacion.IdUsuarioCreador == usuario.IdUsuario)
             {
                 return BadRequest("No puedes solicitar participar en tu propia publicación.");
@@ -230,6 +258,7 @@ namespace API_TFCAppDavid.Controllers
                 );
             }
 
+            // Impedir que un usuario solicite participar más de una vez en la misma publicación.
             var solicitudDuplicada = await _context.SolicitudesParticipacion
                 .AnyAsync(s =>
                     s.IdPublicacion == solicitudParticipacion.IdPublicacion &&
@@ -241,6 +270,8 @@ namespace API_TFCAppDavid.Controllers
                 return BadRequest("Ya has solicitado participar en esta publicación.");
             }
 
+            // Inicializar automáticamente la nueva solicitud con el estado "PENDIENTE" y
+            // la fecha actual.
             solicitudParticipacion.IdUsuarioSolicitante = usuario.IdUsuario;
             solicitudParticipacion.Estado = "PENDIENTE";
             solicitudParticipacion.FechaSolicitud = DateTime.Now;
@@ -263,7 +294,10 @@ namespace API_TFCAppDavid.Controllers
             );
         }
 
-        // DELETE: api/SolicitudesParticipacion/5
+        /// <summary>
+        /// Permite al usuario que hizo la solicitud cancelar su solicitud de participación, 
+        /// siempre que esta aún esté pendiente.
+        /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteSolicitudParticipacion(int id)
         {

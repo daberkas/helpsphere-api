@@ -12,6 +12,11 @@ using System.Security.Claims;
 
 namespace API_TFCAppDavid.Controllers
 {
+    /// <summary>
+    /// Gestión de valoraciones entre usuarios tras completar una colaboración.
+    /// Además de registrar la valoración, se encarga de gestionar la transferencia de puntos entre el usuario que paga 
+    /// y el que gana en función del tipo de publicación (solicitud u oferta) y el estado de la publicación (debe estar completada).
+    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -24,6 +29,11 @@ namespace API_TFCAppDavid.Controllers
             _context = context;
         }
 
+        /// <summary>
+        /// Obtiene el usuario autenticado a partir del token JWT emitido por Firebase. 
+        /// Se buscan diferentes claims comunes para asegurar la compatibilidad con distintas configuraciones
+        /// de autenticación.
+        /// </summary>
         private async Task<Usuario?> GetUsuarioAutenticado()
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -39,7 +49,9 @@ namespace API_TFCAppDavid.Controllers
                 .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
         }
 
-        // GET: api/Valoraciones
+        /// <summary>
+        /// Obtiene todas las valoraciones emitidas o recibidas por el usuario autenticado.
+        /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Valoracion>>> GetValoraciones()
         {
@@ -50,6 +62,8 @@ namespace API_TFCAppDavid.Controllers
                 return Unauthorized("Usuario no encontrado.");
             }
 
+            // Mostramos únicamente las valoraciones relacionadas con el usuario actual,
+            // incluyendo detalles del emisor, receptor y publicación relacionada.
             var valoraciones = await _context.Valoraciones
                 .Where(v =>
                     v.IdUsuarioEmisor == usuario.IdUsuario ||
@@ -75,7 +89,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(valoraciones);
         }
 
-        // GET: api/Valoraciones/5
+        /// <summary>
+        /// Obtiene una valoración específica por su ID, siempre que el usuario autenticado 
+        /// sea el emisor o receptor de dicha valoración.
+        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<Valoracion>> GetValoracion(int id)
         {
@@ -110,6 +127,7 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound();
             }
 
+            // Solo el emisor o receptor de la valoración pueden verla
             if (valoracion.IdUsuarioEmisor != usuario.IdUsuario &&
                 valoracion.IdUsuarioReceptor != usuario.IdUsuario)
             {
@@ -119,7 +137,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(valoracion);
         }
 
-        // PUT: api/Valoraciones/5
+        /// <summary>
+        /// Permite al usuario que emitió la valoración editar su puntuación y comentario, 
+        /// siempre que la publicación relacionada esté completada.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutValoracion(int id, Valoracion valoracion)
@@ -150,6 +171,8 @@ namespace API_TFCAppDavid.Controllers
                 return Forbid();
             }
 
+            // Actualizamos únicamente la puntuación y el comentario,
+            // no se pueden cambiar otros campos
             valoracionExistente.Puntuacion = valoracion.Puntuacion;
             valoracionExistente.Comentario = valoracion.Comentario;
 
@@ -158,7 +181,10 @@ namespace API_TFCAppDavid.Controllers
             return NoContent();
         }
 
-        // POST: api/Valoraciones
+        /// <summary>
+        /// Registra una nueva valoración emitida por el usuario autenticado hacia otro usuario tras completar una colaboración y
+        /// ejecuta la transferencia de puntos entre ambos usuarios según el tipo de publicación y su estado.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Valoracion>> PostValoracion(Valoracion valoracion)
@@ -178,6 +204,7 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound("La publicación indicada no existe.");
             }
 
+            // El usuario no puede valorarse a sí mismo
             if (valoracion.IdUsuarioReceptor == usuario.IdUsuario)
             {
                 return BadRequest("No puedes valorarte a ti mismo.");
@@ -191,6 +218,8 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound("El usuario receptor no existe.");
             }
 
+            // Verificamos que el usuario autenticado no haya valorado ya al mismo receptor
+            // en la misma publicación
             var valoracionDuplicada = await _context.Valoraciones
                 .AnyAsync(v =>
                     v.IdPublicacion == valoracion.IdPublicacion &&
@@ -211,6 +240,7 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound("El usuario receptor no existe.");
             }
 
+            // Solo se pueden valorar publicaciones que estén completadas
             if (publicacion.Estado != "COMPLETADA")
             {
                 return BadRequest("Solo se pueden valorar publicaciones completadas.");
@@ -224,6 +254,7 @@ namespace API_TFCAppDavid.Controllers
             Usuario usuarioQuePaga;
             Usuario usuarioQueGana;
 
+            // Se determina quién paga y quién gana en función del tipo de publicación.
             if (publicacion.TipoPublicacion == "SOLICITUD")
             {
                 // El creador solicitó ayuda, por tanto paga.
@@ -247,6 +278,8 @@ namespace API_TFCAppDavid.Controllers
                 return BadRequest("Tipo de publicación no válido.");
             }
 
+            // Verificamos que el usuario que paga tenga saldo suficiente
+            // para cubrir los puntos a transferir y poder completar la operación.
             if (usuarioQuePaga.SaldoPuntos < puntos)
             {
                 return BadRequest(
@@ -254,9 +287,15 @@ namespace API_TFCAppDavid.Controllers
                 );
             }
 
+            // Se realiza la transferencia efectiva de puntos entre ambos usuarios.
+            // La valoración actúa como mecanismo de cierre de la colaboración,
+            // por lo que la transferencia se ejecuta en el mismo proceso para garantizar
+            // la atomicidad de la operación.
             usuarioQuePaga.SaldoPuntos -= puntos;
             usuarioQueGana.SaldoPuntos += puntos;
 
+            // Se registran los movimientos de puntos para ambos usuarios para mantener
+            // la trazabilidad, indicando el motivo de la transacción.
             _context.MovimientosPuntos.Add(new MovimientoPuntos
             {
                 TipoMovimiento = "GASTO",
@@ -296,7 +335,10 @@ namespace API_TFCAppDavid.Controllers
             );
         }
 
-        // DELETE: api/Valoraciones/5
+        /// <summary>
+        /// Permite eliminar una valoración, únicamente si el usuario autenticado 
+        /// es el emisor de dicha valoración.
+        /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteValoracion(int id)
         {
@@ -315,7 +357,7 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound();
             }
 
-            // Solo el emisor puede eliminar su valoración
+            // Solo el autor puede eliminar una valoración emitida.
             if (valoracion.IdUsuarioEmisor != usuario.IdUsuario)
             {
                 return Forbid();

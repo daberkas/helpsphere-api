@@ -11,6 +11,11 @@ using System.Threading.Tasks;
 
 namespace API_TFCAppDavid.Controllers
 {
+    /// <summary>
+    /// Gestión de categorias usadas para clasificar las publicaciones.
+    /// La consulta está disponible para cualquier usuario, pero la creación, 
+    /// modificación y eliminación de categorías queda reservada para administradores.
+    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -23,7 +28,9 @@ namespace API_TFCAppDavid.Controllers
             _context = context;
         }
 
-        // GET: api/Categorias
+        /// <summary>
+        /// Obtiene la lista de todas las categorías disponibles.
+        /// </summary>
         [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Categoria>>> GetCategorias()
@@ -40,7 +47,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(categorias);
         }
 
-        // GET: api/Categorias/5
+        /// <summary>
+        /// Obtiene la información de una categoría específica por su ID. 
+        /// La consulta está disponible para cualquier usuario.
+        /// </summary>
         [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<Categoria>> GetCategoria(int id)
@@ -71,11 +81,15 @@ namespace API_TFCAppDavid.Controllers
             return BadRequest("La modificación de categorías queda reservada para administración.");
         }
 
-        // POST: api/Categorias
+        /// <summary>
+        /// Crea una nueva categoría. Solo los usuarios con rol de administrador 
+        /// pueden realizar esta acción.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Categoria>> PostCategoria(Categoria categoria)
         {
+            // Verificar que el usuario autenticado es administrador
             if (!await EsAdministrador())
             {
                 return Forbid();
@@ -109,7 +123,10 @@ namespace API_TFCAppDavid.Controllers
             );
         }
 
-        // DELETE: api/Categorias/5
+        /// <summary>
+        /// Elimina una categoría siempre que no tenga publicaciones asociadas. 
+        /// Solo los usuarios con rol de administrador pueden realizar esta acción.
+        /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCategoria(int id)
         {
@@ -126,6 +143,7 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound();
             }
 
+            // Evitar eliminar una categoría que tenga publicaciones asociadas
             var tienePublicaciones = await _context.Publicaciones
                 .AnyAsync(p => p.IdCategoria == id);
 
@@ -145,6 +163,10 @@ namespace API_TFCAppDavid.Controllers
             return _context.Categorias.Any(e => e.IdCategoria == id);
         }
 
+        /// <summary>
+        /// Obtiene el usuario autenticado a partir de las claims del token JWT. 
+        /// Se busca el usuario en la base de datos utilizando el FirebaseUid extraído del token.
+        /// </summary>
         private async Task<Usuario?> GetUsuarioAutenticado()
         {
             var firebaseUid = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
@@ -160,6 +182,10 @@ namespace API_TFCAppDavid.Controllers
                 .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
         }
 
+        /// <summary>
+        /// Comprueba si el usuario autenticado tiene el rol de administrador. 
+        /// Se obtiene el usuario autenticado
+        /// </summary>
         private async Task<bool> EsAdministrador()
         {
             var usuario = await GetUsuarioAutenticado();

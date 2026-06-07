@@ -12,6 +12,12 @@ using System.Security.Claims;
 
 namespace API_TFCAppDavid.Controllers
 {
+    /// <summary>
+    /// Gestión de publicaciones que pueden ser solicitudes u ofertas de servicios.
+    /// Permite crear, consultar, modificar y eliminar publicaciones.
+    /// Solo el creador de la publicación puede modificarla o eliminarla, respetando la logica de negocio 
+    /// de la plataforma. Las publicaciones con actividad asociada no pueden ser eliminadas, solo canceladas.
+    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -24,6 +30,10 @@ namespace API_TFCAppDavid.Controllers
             _context = context;
         }
 
+        /// <summary>
+        /// Obtiene el usuario autenticado a partir del token JWT, buscando su Firebase UID 
+        /// y luego su registro en la base de datos.
+        /// </summary>
         private async Task<Usuario?> GetUsuarioAutenticado()
         {
             // Se obtiene Firebase UID desde el token JWT
@@ -41,7 +51,10 @@ namespace API_TFCAppDavid.Controllers
                 .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
         }
 
-        // GET: api/Publicaciones
+        /// <summary>
+        /// Obtiene todas las publicaciones disponibles. 
+        /// Se pueden aplicar filtros por tipo, estado, zona o categoría.
+        /// </summary>
         [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Publicacion>>> GetPublicaciones()
@@ -66,7 +79,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(publicaciones);
         }
 
-        // GET: api/Publicaciones/5
+        /// <summary>
+        /// Obtiene una publicación específica por su ID. 
+        /// Devuelve detalles de la publicación.
+        /// </summary>
         [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<Publicacion>> GetPublicacion(int id)
@@ -97,7 +113,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(publicacion);
         }
 
-        // PUT: api/Publicaciones/5
+        /// <summary>
+        /// Permite actualizar una publicación existente o 
+        /// modificar solo su estado según los permisos del usuario autenticado.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutPublicacion(int id, Publicacion publicacion)
@@ -123,8 +142,11 @@ namespace API_TFCAppDavid.Controllers
                 return NotFound();
             }
 
+            // Comprobamos si el usuario es el creador de la publicación
             var esCreador = publicacionExistente.IdUsuarioCreador == usuario.IdUsuario;
 
+            // Comprobamos si el usuario participa en la publicación y fue aceptado
+            // para cambiar solo el estado a COMPLETADA o CANCELADA
             var esUsuarioAceptado = await _context.SolicitudesParticipacion
                 .AnyAsync(s =>
                     s.IdPublicacion == id &&
@@ -137,11 +159,15 @@ namespace API_TFCAppDavid.Controllers
                 nuevoEstado == "COMPLETADA" ||
                 nuevoEstado == "CANCELADA";
 
+            //Solo el creador puede modificar todos los campos, pero un usuario aceptado
+            //solo puede cambiar el estado a COMPLETADA o CANCELADA
             if (!esCreador && !(esUsuarioAceptado && cambioSoloEstadoFinal))
             {
                 return Forbid();
             }
 
+            // Se aplican cambios según el rol del usuario respecto a la publicación: Si el usuario
+            // no es el creador, solo se permite cambiar el estado a COMPLETADA o CANCELADA.
             if (esCreador)
             {
                 publicacionExistente.TipoPublicacion = publicacion.TipoPublicacion;
@@ -163,7 +189,9 @@ namespace API_TFCAppDavid.Controllers
             return NoContent();
         }
 
-        // POST: api/Publicaciones
+        /// <summary>
+        /// Crea una nueva publicación de tipo solicitud u oferta.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Publicacion>> PostPublicacion(Publicacion publicacion)
@@ -179,16 +207,21 @@ namespace API_TFCAppDavid.Controllers
             publicacion.TipoPublicacion = publicacion.TipoPublicacion?.ToUpper();
             publicacion.Estado = publicacion.Estado?.ToUpper();
 
+            // Validación del tipo publicación permitido. Solo se permiten "SOLICITUD" u "OFERTA"
             if (publicacion.TipoPublicacion != "SOLICITUD" && publicacion.TipoPublicacion != "OFERTA")
             {
                 return BadRequest("El tipo de publicación debe ser SOLICITUD u OFERTA.");
             }
 
+            // Validación de la cantidad de puntos solicitados o ofrecidos.
+            // Debe ser un número positivo mayor que cero.
             if (publicacion.PuntosEstimados <= 0)
             {
                 return BadRequest("Los puntos estimados deben ser mayores que cero.");
             }
 
+            // Verificación de saldo de puntos para publicaciones de tipo SOLICITUD.
+            // El usuario debe tener saldo suficiente para crear la solicitud.
             if (publicacion.TipoPublicacion == "SOLICITUD" &&
                 usuario.SaldoPuntos < publicacion.PuntosEstimados)
             {
@@ -228,7 +261,10 @@ namespace API_TFCAppDavid.Controllers
 
         }
 
-        // DELETE: api/Publicaciones/5
+        /// <summary>
+        /// Elimina una publicación existente. Solo el creador de la publicación puede eliminarla, 
+        /// y solo si no tiene actividad asociada.
+        /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePublicacion(int id)
         {
@@ -264,6 +300,10 @@ namespace API_TFCAppDavid.Controllers
 
             var tieneMovimientos = await _context.MovimientosPuntos
                 .AnyAsync(m => m.IdPublicacion == id);
+
+            // Se evita el borrado físico de publicaciones con actividad registrada,
+            // para mantener la integridad referencial de la información y el historial
+            // de transacciones.
 
             if (tieneSolicitudes || tieneValoraciones || tieneMovimientos)
             {

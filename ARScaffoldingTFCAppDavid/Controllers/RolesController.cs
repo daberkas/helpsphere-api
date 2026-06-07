@@ -11,6 +11,11 @@ using System.Threading.Tasks;
 
 namespace API_TFCAppDavid.Controllers
 {
+    /// <summary>
+    /// Consulta de roles disponibles en el sistema. 
+    /// Los roles son gestionados internamente y no pueden ser creados, 
+    /// modificados o eliminados desde el cliente.
+    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -23,7 +28,9 @@ namespace API_TFCAppDavid.Controllers
             _context = context;
         }
 
-        // GET: api/Roles
+        /// <summary>
+        /// Obtiene la lista de roles disponibles en el sistema.
+        /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Rol>>> GetRoles()
         {
@@ -38,7 +45,9 @@ namespace API_TFCAppDavid.Controllers
             return Ok(roles);
         }
 
-        // GET: api/Roles/5
+        /// <summary>
+        /// Obtiene la información de un rol concreto por su ID.
+        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<Rol>> GetRol(int id)
         {
@@ -59,7 +68,10 @@ namespace API_TFCAppDavid.Controllers
             return Ok(rol);
         }
 
-        // PUT: api/Roles/5
+        /// <summary>
+        /// Operación no permitida. Los roles no pueden modificarse desde el cliente. 
+        /// La modificación de roles queda reservada para administración.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutRol(int id, Rol rol)
@@ -67,7 +79,10 @@ namespace API_TFCAppDavid.Controllers
             return BadRequest("La modificación de roles queda reservada para administración.");
         }
 
-        // POST: api/Roles
+        /// <summary>
+        /// Operación no permitida. Los roles se gestionan internamente y no pueden ser creados
+        /// desde el cliente.
+        /// </summary>
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Rol>> PostRol(Rol rol)
@@ -75,7 +90,10 @@ namespace API_TFCAppDavid.Controllers
             return BadRequest("La creación de roles queda reservada para administración.");
         }
 
-        // DELETE: api/Roles/5
+        /// <summary>
+        /// Operación no permitida. Los roles se gestionan internamente y no pueden ser eliminados 
+        /// desde el cliente.
+        /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRol(int id)
         {
